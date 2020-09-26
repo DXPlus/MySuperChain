@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
+	"io"
 	"strings"
 )
 
@@ -58,24 +59,24 @@ func (sc *SuperChain) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 // init
 func (sc *SuperChain) initialize(stub shim.ChaincodeStubInterface) pb.Response{
 
-	// Generate PrivateKey and RootCert
-	rootCertificateString,rootPrivateKeyByteString := sc.GeneratePrivateKeyAndRootCert()
-	// save rootCertificate and rootPrivateKey in superchain
-	if err := stub.PutState(RootCertificate, []byte(rootCertificateString)); err != nil {
-		return shim.Error(fmt.Errorf("save rootCertificate error: %w", err).Error())
-	}
-
-	if err := stub.PutState(RootPrivateKey, []byte(rootPrivateKeyByteString)); err != nil {
-		return shim.Error(fmt.Errorf("save privateKey error: %w", err).Error())
-	}
+	//// Generate PrivateKey and RootCert
+	//rootCertificateString,rootPrivateKeyByteString := sc.GeneratePrivateKeyAndRootCert()
+	//// save rootCertificate and rootPrivateKey in superchain
+	//if err := stub.PutState(RootCertificate, []byte(rootCertificateString)); err != nil {
+	//	return shim.Error(fmt.Errorf("save rootCertificate error: %w", err).Error())
+	//}
+	//
+	//if err := stub.PutState(RootPrivateKey, []byte(rootPrivateKeyByteString)); err != nil {
+	//	return shim.Error(fmt.Errorf("save privateKey error: %w", err).Error())
+	//}
 
 	return shim.Success(nil)
 }
 
 // register chain to get cert and save chain info
 func (sc *SuperChain) chainRegister(stub shim.ChaincodeStubInterface, args []string) pb.Response{
-	if len(args) != 1 {
-		return shim.Error("Incorrect number of arguments. Expecting 1")
+	if len(args) != 5 {
+		return shim.Error("Incorrect number of arguments. Expecting 5")
 	}
 
 	info := args[0]
@@ -93,29 +94,29 @@ func (sc *SuperChain) chainRegister(stub shim.ChaincodeStubInterface, args []str
 	// create ID
 	tempString := info + ip + serial
 	Sha1Inst := sha1.New()
-	Sha1Inst.Write([]byte(tempString))
-	chainID := Sha1Inst.Sum([]byte(""))
+	io.WriteString(Sha1Inst,tempString)
+	chainID := fmt.Sprintf("%x",Sha1Inst.Sum(nil))
 
 	// create chain struct
 	chain := Chain{
-		ID:            string(chainID),
+		ID:            chainID,
 		INFO:          info,
 		IP:            ip,
 		SERIAL:        serial,
 	}
 	chainJson, err := json.Marshal(chain)
 	if err != nil {
-		fmt.Println("chain json marshal error: ", err)
+		return shim.Error(fmt.Errorf("chain json marshal error: %w", err).Error())
 	}
 
 	// save chain
 	if err := stub.PutState(chain.ID, chainJson); err != nil {
-		return shim.Error(fmt.Errorf("save chain error: %w", err).Error())
+		return shim.Error(fmt.Errorf("save chain error: %w").Error())
 	}
 
 	// save chain's org ca cert
 	if err := stub.PutState(ToChainOrgCertID(chain.ID), []byte(orgCACert)); err != nil {
-		return shim.Error(fmt.Errorf("save chain error: %w", err).Error())
+		return shim.Error(fmt.Errorf("save chain's org ca cert error: %w", err).Error())
 	}
 
 	// get root certificate
@@ -132,12 +133,11 @@ func (sc *SuperChain) chainRegister(stub shim.ChaincodeStubInterface, args []str
 	}
 	rtrJson, err := json.Marshal(rtr)
 	if err != nil {
-		fmt.Println("rtr json marshal error: ", err)
+		return shim.Error(fmt.Errorf("rtr json marshal error: %w", err).Error())
 	}
 
 	return shim.Success(rtrJson)
 }
-
 
 // get ChainInfo from chainID
 func (sc *SuperChain) getChainInfo(stub shim.ChaincodeStubInterface, args []string) pb.Response {

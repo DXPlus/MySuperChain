@@ -13,6 +13,36 @@ type Org struct {
 }
 
 // set chain org ca cert
+func (sc *SuperChain) setRootCertificate(stub shim.ChaincodeStubInterface, args []string) pb.Response{
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting 1")
+	}
+
+	rootCertificateString := args[0]
+
+	if err := stub.PutState(RootCertificate, []byte(rootCertificateString)); err != nil {
+		return shim.Error(fmt.Errorf("save root certificate error: %w", err).Error())
+	}
+
+	return shim.Success(nil)
+}
+
+// set chain org ca cert
+func (sc *SuperChain) setRootPrivateKey(stub shim.ChaincodeStubInterface, args []string) pb.Response{
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting 1")
+	}
+
+	rootPrivateKeyByteString := args[0]
+
+	if err := stub.PutState(RootPrivateKey, []byte(rootPrivateKeyByteString)); err != nil {
+		return shim.Error(fmt.Errorf("save root privateKey error: %w", err).Error())
+	}
+
+	return shim.Success(nil)
+}
+
+// set chain org ca cert
 func (sc *SuperChain) setChainOrgCACert(stub shim.ChaincodeStubInterface, args []string) pb.Response{
 	if len(args) != 2 {
 		return shim.Error("Incorrect number of arguments. Expecting 2")
